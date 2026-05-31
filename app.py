@@ -22,7 +22,8 @@ def fetch_html():
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             page = browser.new_page()
-            page.goto(url, wait_until="networkidle", timeout=30000)
+            page.goto(url, wait_until="domcontentloaded", timeout=60000)
+            page.wait_for_timeout(5000)  # המתן 5 שניות ל-Cloudflare
             html = page.content()
             browser.close()
         return jsonify({"html": html, "status_code": 200})
