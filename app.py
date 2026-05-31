@@ -18,16 +18,14 @@ def fetch_html():
         return jsonify({"error": "Missing url"}), 400
 
     try:
-        from curl_cffi import requests as curl_requests
-        response = curl_requests.get(
-            url,
-            impersonate="chrome",
-            timeout=30
-        )
-        return jsonify({
-            "html": response.text,
-            "status_code": response.status_code
-        })
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
+            page.goto(url, wait_until="networkidle", timeout=30000)
+            html = page.content()
+            browser.close()
+        return jsonify({"html": html, "status_code": 200})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
