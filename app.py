@@ -8,8 +8,8 @@ API_KEY = os.environ.get("API_KEY", "mysecret1")
 def health():
     return jsonify({"status": "ok"})
 
-@app.route("/fetch-html")
-def fetch_html():
+@app.route("/fetch-html-scrapfly")
+def fetch_html_scrapfly():
     if request.headers.get("X-API-Key") != API_KEY:
         return jsonify({"error": "Unauthorized"}), 401
 
@@ -18,36 +18,18 @@ def fetch_html():
         return jsonify({"error": "Missing url"}), 400
 
     try:
-        from playwright.sync_api import sync_playwright
-        with sync_playwright() as p:
-            browser = p.chromium.launch(
-                headless=True,
-                args=[
-                    "--no-sandbox",
-                    "--disable-blink-features=AutomationControlled",
-                    "--disable-dev-shm-usage",
-                ]
-            )
-            context = browser.new_context(
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                viewport={"width": 1280, "height": 800},
-                locale="he-IL",
-                timezone_id="Asia/Jerusalem",
-            )
-            page = context.new_page()
-
-            # הסתרת סימני אוטומציה
-            page.add_init_script("""
-                Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-                Object.defineProperty(navigator, 'plugins', {get: () => [1,2,3]});
-                window.chrome = {runtime: {}};
-            """)
-
-            page.goto(url, wait_until="domcontentloaded", timeout=60000)
-            page.wait_for_timeout(8000)
-            html = page.content()
-            browser.close()
-        return jsonify({"html": html, "status_code": 200})
+        from scrapfly import ScrapeConfig, ScrapflyClient
+        SCRAPFLY_KEY = os.environ.get("SCRAPFLY_KEY")
+        client = ScrapflyClient(key=SCRAPFLY_KEY)
+        result = client.scrape(ScrapeConfig(
+            url=url,
+            asp=True,  # עוקף Cloudflare
+            render_js=True,  # מריץ JavaScript
+        ))
+        return jsonify({
+            "html": result.scrape_result["content"],
+            "status_code": 200
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
